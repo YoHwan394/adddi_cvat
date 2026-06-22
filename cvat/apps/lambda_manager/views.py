@@ -21,6 +21,7 @@ import requests
 import rq
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db.models import Max
 from django.core.signing import BadSignature, TimestampSigner
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
@@ -40,6 +41,9 @@ from cvat.apps.engine.media_io.frame_provider import TaskFrameProvider
 from cvat.apps.engine.models import (
     Job,
     Label,
+    LabeledImage,
+    LabeledShape,
+    LabeledTrack,
     MediaType,
     RequestAction,
     RequestTarget,
@@ -47,6 +51,7 @@ from cvat.apps.engine.models import (
     SourceType,
     Task,
 )
+from cvat.apps.engine.pose_bbox import normalize_bbox_points, pose_bbox_label_name
 from cvat.apps.engine.rq import RequestId, define_dependent_job
 from cvat.apps.engine.serializers import LabeledDataSerializer
 from cvat.apps.engine.types import ExtendedRequest
@@ -757,6 +762,20 @@ class LambdaQueue:
 class DetectionResultConverter:
     def __init__(self, db_task: Task) -> None:
         self._labels = self._convert_labels(db_task.get_labels(prefetch=True))
+        self._next_group = self._get_next_group(db_task)
+
+    @staticmethod
+    def _get_next_group(db_task: Task) -> int:
+        max_groups = [
+            model.objects.filter(job__segment__task=db_task).aggregate(Max("group"))["group__max"]
+            for model in (LabeledImage, LabeledShape, LabeledTrack)
+        ]
+        return max([group or 0 for group in max_groups]) + 1
+
+    def _allocate_group(self) -> int:
+        group = self._next_group
+        self._next_group += 1
+        return group
 
     @classmethod
     def _convert_labels(cls, db_labels) -> dict:
@@ -780,10 +799,42 @@ class DetectionResultConverter:
                     data["tags"].append(parsed)
                 else:
                     data["shapes"].append(parsed)
+                    if companion := self._make_pose_bbox_companion(parsed, anno):
+                        data["shapes"].append(companion)
 
         serializer = LabeledDataSerializer(data=data)
         serializer.is_valid(raise_exception=True)
         return serializer.validated_data
+
+    def _make_pose_bbox_companion(self, parsed: dict, anno: dict) -> dict | None:
+        if parsed["type"] != ShapeType.SKELETON or "bbox" not in anno:
+            return None
+
+        bbox_label = self._labels.get(pose_bbox_label_name(anno["label"]))
+        if bbox_label is None or bbox_label["type"] not in {ShapeType.RECTANGLE, "any"}:
+            return None
+
+        group = parsed.get("group") or self._allocate_group()
+        parsed["group"] = group
+
+        try:
+            points = normalize_bbox_points(anno["bbox"])
+        except ValueError:
+            return None
+
+        return {
+            "frame": parsed["frame"],
+            "label_id": bbox_label["id"],
+            "source": parsed["source"],
+            "attributes": [],
+            "group": group,
+            "type": ShapeType.RECTANGLE,
+            "occluded": False,
+            "outside": parsed.get("outside", False),
+            "points": points,
+            "z_order": parsed["z_order"],
+            "rotation": 0,
+        }
 
     def _parse_anno(
         self, *, labels: dict, conv_mask_to_poly: bool, frame: int, anno: dict

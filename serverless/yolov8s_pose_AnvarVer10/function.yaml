@@ -1,0 +1,84 @@
+metadata:
+  name: yolov8s-pose-anvarver10
+  namespace: cvat
+  annotations:
+    name: yolov8s_pose_AnvarVer10
+    type: detector
+    framework: pytorch
+    spec: |
+      [
+        {
+          "name": "person",
+          "type": "skeleton",
+          "svg": "<line x1=\"50\" y1=\"10\" x2=\"44\" y2=\"15\" data-type=\"edge\" data-node-from=\"1\" data-node-to=\"2\"></line>\n<line x1=\"50\" y1=\"10\" x2=\"56\" y2=\"15\" data-type=\"edge\" data-node-from=\"1\" data-node-to=\"3\"></line>\n<line x1=\"44\" y1=\"15\" x2=\"38\" y2=\"16\" data-type=\"edge\" data-node-from=\"2\" data-node-to=\"4\"></line>\n<line x1=\"56\" y1=\"15\" x2=\"62\" y2=\"16\" data-type=\"edge\" data-node-from=\"3\" data-node-to=\"5\"></line>\n<line x1=\"36\" y1=\"32\" x2=\"64\" y2=\"32\" data-type=\"edge\" data-node-from=\"6\" data-node-to=\"7\"></line>\n<line x1=\"36\" y1=\"32\" x2=\"28\" y2=\"48\" data-type=\"edge\" data-node-from=\"6\" data-node-to=\"8\"></line>\n<line x1=\"28\" y1=\"48\" x2=\"22\" y2=\"64\" data-type=\"edge\" data-node-from=\"8\" data-node-to=\"10\"></line>\n<line x1=\"64\" y1=\"32\" x2=\"72\" y2=\"48\" data-type=\"edge\" data-node-from=\"7\" data-node-to=\"9\"></line>\n<line x1=\"72\" y1=\"48\" x2=\"78\" y2=\"64\" data-type=\"edge\" data-node-from=\"9\" data-node-to=\"11\"></line>\n<line x1=\"36\" y1=\"32\" x2=\"40\" y2=\"58\" data-type=\"edge\" data-node-from=\"6\" data-node-to=\"12\"></line>\n<line x1=\"64\" y1=\"32\" x2=\"60\" y2=\"58\" data-type=\"edge\" data-node-from=\"7\" data-node-to=\"13\"></line>\n<line x1=\"40\" y1=\"58\" x2=\"60\" y2=\"58\" data-type=\"edge\" data-node-from=\"12\" data-node-to=\"13\"></line>\n<line x1=\"40\" y1=\"58\" x2=\"36\" y2=\"78\" data-type=\"edge\" data-node-from=\"12\" data-node-to=\"14\"></line>\n<line x1=\"36\" y1=\"78\" x2=\"34\" y2=\"96\" data-type=\"edge\" data-node-from=\"14\" data-node-to=\"16\"></line>\n<line x1=\"60\" y1=\"58\" x2=\"64\" y2=\"78\" data-type=\"edge\" data-node-from=\"13\" data-node-to=\"15\"></line>\n<line x1=\"64\" y1=\"78\" x2=\"66\" y2=\"96\" data-type=\"edge\" data-node-from=\"15\" data-node-to=\"17\"></line>\n<circle r=\"0.75\" cx=\"50\" cy=\"10\" data-type=\"element node\" data-element-id=\"1\" data-node-id=\"1\" data-label-name=\"nose\"></circle>\n<circle r=\"0.75\" cx=\"44\" cy=\"15\" data-type=\"element node\" data-element-id=\"2\" data-node-id=\"2\" data-label-name=\"left_eye\"></circle>\n<circle r=\"0.75\" cx=\"56\" cy=\"15\" data-type=\"element node\" data-element-id=\"3\" data-node-id=\"3\" data-label-name=\"right_eye\"></circle>\n<circle r=\"0.75\" cx=\"38\" cy=\"16\" data-type=\"element node\" data-element-id=\"4\" data-node-id=\"4\" data-label-name=\"left_ear\"></circle>\n<circle r=\"0.75\" cx=\"62\" cy=\"16\" data-type=\"element node\" data-element-id=\"5\" data-node-id=\"5\" data-label-name=\"right_ear\"></circle>\n<circle r=\"0.75\" cx=\"36\" cy=\"32\" data-type=\"element node\" data-element-id=\"6\" data-node-id=\"6\" data-label-name=\"left_shoulder\"></circle>\n<circle r=\"0.75\" cx=\"64\" cy=\"32\" data-type=\"element node\" data-element-id=\"7\" data-node-id=\"7\" data-label-name=\"right_shoulder\"></circle>\n<circle r=\"0.75\" cx=\"28\" cy=\"48\" data-type=\"element node\" data-element-id=\"8\" data-node-id=\"8\" data-label-name=\"left_elbow\"></circle>\n<circle r=\"0.75\" cx=\"72\" cy=\"48\" data-type=\"element node\" data-element-id=\"9\" data-node-id=\"9\" data-label-name=\"right_elbow\"></circle>\n<circle r=\"0.75\" cx=\"22\" cy=\"64\" data-type=\"element node\" data-element-id=\"10\" data-node-id=\"10\" data-label-name=\"left_wrist\"></circle>\n<circle r=\"0.75\" cx=\"78\" cy=\"64\" data-type=\"element node\" data-element-id=\"11\" data-node-id=\"11\" data-label-name=\"right_wrist\"></circle>\n<circle r=\"0.75\" cx=\"40\" cy=\"58\" data-type=\"element node\" data-element-id=\"12\" data-node-id=\"12\" data-label-name=\"left_hip\"></circle>\n<circle r=\"0.75\" cx=\"60\" cy=\"58\" data-type=\"element node\" data-element-id=\"13\" data-node-id=\"13\" data-label-name=\"right_hip\"></circle>\n<circle r=\"0.75\" cx=\"36\" cy=\"78\" data-type=\"element node\" data-element-id=\"14\" data-node-id=\"14\" data-label-name=\"left_knee\"></circle>\n<circle r=\"0.75\" cx=\"64\" cy=\"78\" data-type=\"element node\" data-element-id=\"15\" data-node-id=\"15\" data-label-name=\"right_knee\"></circle>\n<circle r=\"0.75\" cx=\"34\" cy=\"96\" data-type=\"element node\" data-element-id=\"16\" data-node-id=\"16\" data-label-name=\"left_ankle\"></circle>\n<circle r=\"0.75\" cx=\"66\" cy=\"96\" data-type=\"element node\" data-element-id=\"17\" data-node-id=\"17\" data-label-name=\"right_ankle\"></circle>",
+          "sublabels": [
+            {"id": 0, "name": "nose", "type": "points"},
+            {"id": 1, "name": "left_eye", "type": "points"},
+            {"id": 2, "name": "right_eye", "type": "points"},
+            {"id": 3, "name": "left_ear", "type": "points"},
+            {"id": 4, "name": "right_ear", "type": "points"},
+            {"id": 5, "name": "left_shoulder", "type": "points"},
+            {"id": 6, "name": "right_shoulder", "type": "points"},
+            {"id": 7, "name": "left_elbow", "type": "points"},
+            {"id": 8, "name": "right_elbow", "type": "points"},
+            {"id": 9, "name": "left_wrist", "type": "points"},
+            {"id": 10, "name": "right_wrist", "type": "points"},
+            {"id": 11, "name": "left_hip", "type": "points"},
+            {"id": 12, "name": "right_hip", "type": "points"},
+            {"id": 13, "name": "left_knee", "type": "points"},
+            {"id": 14, "name": "right_knee", "type": "points"},
+            {"id": 15, "name": "left_ankle", "type": "points"},
+            {"id": 16, "name": "right_ankle", "type": "points"}
+          ]
+        }
+      ]
+
+spec:
+  description: yolov8s_pose_AnvarVer10
+  runtime: 'python:3.10'
+  handler: main:handler
+  eventTimeout: 30s
+
+  build:
+    image: yolov8s-pose-anvarver10
+    baseImage: ubuntu:22.04
+
+    directives:
+      preCopy:
+        - kind: ENV
+          value: DEBIAN_FRONTEND=noninteractive
+        - kind: ENV
+          value: MODEL_PATH=yolov8s_pose_AnvarVer10.pt
+        - kind: ENV
+          value: DETECTION_THRESHOLD=0.5
+        - kind: ENV
+          value: KEYPOINT_THRESHOLD=0.3
+        - kind: RUN
+          value: apt-get update && apt-get -y install curl git python3 python3-pip
+        - kind: RUN
+          value: apt-get -y install libgl1-mesa-glx libglib2.0-dev
+        - kind: WORKDIR
+          value: /opt/nuclio
+        - kind: RUN
+          value: pip3 install --no-cache-dir torch==2.0.0+cpu torchvision==0.15.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+        - kind: RUN
+          value: pip3 install --no-cache-dir 'ultralytics>=8.3.0,<9.0.0' opencv-python-headless==4.7.0.72 numpy==1.24.3 pyyaml==6.0.1
+        - kind: RUN
+          value: ln -s /usr/bin/pip3 /usr/local/bin/pip
+        - kind: RUN
+          value: ln -s /usr/bin/python3 /usr/local/bin/python
+
+  triggers:
+    myHttpTrigger:
+      maxWorkers: 1
+      kind: 'http'
+      workerAvailabilityTimeoutMilliseconds: 10000
+      attributes:
+        maxRequestBodySize: 33554432 # 32MB
+
+  platform:
+    attributes:
+      restartPolicy:
+        name: always
+        maximumRetryCount: 3
+      mountMode: volume

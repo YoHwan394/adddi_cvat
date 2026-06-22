@@ -42,6 +42,7 @@ export interface SerializedData {
     pinned?: boolean;
     attributes?: Record<number, string>;
     group?: { color: string; id: number; };
+    creationGroup?: number;
     color?: string;
     updated?: number;
     source?: Source;
@@ -83,6 +84,7 @@ export default class ObjectState {
     public readonly parentID: number | null;
     public readonly updated: number;
     public readonly group: { color: string; id: number; } | null;
+    public readonly creationGroup: number | null;
     public readonly isGroundTruth: boolean;
     public readonly keyframes: {
         first: number | null;
@@ -174,6 +176,7 @@ export default class ObjectState {
             source: serialized.source || Source.MANUAL,
             keyframes: serialized.keyframes || null,
             group: serialized.group || null,
+            creationGroup: serialized.creationGroup || null,
             updated: serialized.updated || Date.now(),
 
             clientID: serialized.clientID || null,
@@ -310,6 +313,9 @@ export default class ObjectState {
                 },
                 group: {
                     get: () => data.group,
+                },
+                creationGroup: {
+                    get: () => data.creationGroup,
                 },
                 zOrder: {
                     get: () => data.zOrder,

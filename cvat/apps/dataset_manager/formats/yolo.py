@@ -5,17 +5,20 @@
 import os.path as osp
 from collections.abc import Callable
 from glob import glob
+from pathlib import Path
 
 from datumaro.components.annotation import AnnotationType
 from datumaro.components.dataset import StreamDataset
 from datumaro.components.dataset_base import DatasetItem
 from pyunpack import Archive
+import yaml
 
 from cvat.apps.dataset_manager.bindings import (
     CommonData,
     CVATDataExtractorMixin,
     GetCVATDataExtractor,
     ProjectData,
+    convert_cvat_anno_to_dm,
     detect_dataset,
     find_dataset_root,
     import_dm_annotations,
@@ -24,6 +27,11 @@ from cvat.apps.dataset_manager.bindings import (
 from cvat.apps.dataset_manager.util import make_zip_archive
 
 from .registry import dm_env, exporter, importer
+from .pose_bbox import (
+    AddPoseBboxCompanions,
+    RemapPoseBboxCompanionsForYolo,
+    use_pose_bbox_companions,
+)
 from .transformations import EllipsesToMasks, SetKeyframeForEveryTrackShape
 
 
@@ -56,6 +64,7 @@ def _import_common(
     *,
     load_data_callback: Callable | None = None,
     import_kwargs: dict | None = None,
+    after_import_callback: Callable | None = None,
     **kwargs,
 ):
     Archive(src_file.name).extractall(temp_dir)
@@ -86,9 +95,97 @@ def _import_common(
         temp_dir, format_name, env=dm_env, image_info=image_info, **(import_kwargs or {})
     )
     dataset = dataset.transform(SetKeyframeForEveryTrackShape)
+    if after_import_callback is not None:
+        dataset = after_import_callback(dataset, temp_dir, image_info)
     if load_data_callback is not None:
         load_data_callback(dataset, instance_data)
     import_dm_annotations(dataset, instance_data)
+
+
+def _load_yolo_ultralytics_label_names(temp_dir: str) -> dict[int, str]:
+    config_path = next(Path(temp_dir).rglob("data.yaml"), None)
+    if config_path is None:
+        return {}
+
+    with config_path.open(encoding="utf-8") as config_file:
+        names = (yaml.safe_load(config_file) or {}).get("names", {})
+
+    if isinstance(names, list):
+        return {index: str(name) for index, name in enumerate(names)}
+    if isinstance(names, dict):
+        return {int(index): str(name) for index, name in names.items()}
+
+    return {}
+
+
+def _possible_yolo_item_ids(path: Path, temp_dir: str, extractor) -> set[str]:
+    aliases = set()
+    rel_path = path.relative_to(temp_dir).as_posix()
+    aliases.add(extractor.name_from_path(rel_path))
+
+    parts = path.parts
+    if "labels" in parts:
+        labels_index = parts.index("labels")
+        labels_rel = Path(*parts[labels_index + 1 :]).as_posix()
+        aliases.add(extractor.name_from_path(labels_rel))
+        if len(parts) > labels_index + 2:
+            subset_rel = Path(*parts[labels_index + 2 :]).as_posix()
+            aliases.add(extractor.name_from_path(subset_rel))
+
+    aliases.add(path.stem)
+    return aliases
+
+
+def _collect_yolo_pose_bboxes(temp_dir: str, image_info: dict[str, tuple[int, int]]) -> dict[str, list]:
+    label_names = _load_yolo_ultralytics_label_names(temp_dir)
+    if not label_names:
+        return {}
+
+    extractor = dm_env.extractors.get("yolo_ultralytics_pose")
+    bboxes_by_item = {}
+
+    for path in Path(temp_dir).rglob("*.txt"):
+        item_bboxes = []
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except UnicodeDecodeError:
+            continue
+
+        for line in lines:
+            parts = line.split()
+            if len(parts) < 5:
+                continue
+            try:
+                label_name = label_names[int(parts[0])]
+                cx, cy, rw, rh = map(float, parts[1:5])
+            except (KeyError, ValueError):
+                continue
+
+            item_bboxes.append((label_name, cx, cy, rw, rh))
+
+        if not item_bboxes:
+            continue
+
+        for item_id in _possible_yolo_item_ids(path, temp_dir, extractor):
+            if item_id not in image_info:
+                continue
+
+            height, width = image_info[item_id]
+            bboxes_by_item.setdefault(item_id, [])
+            for label_name, cx, cy, rw, rh in item_bboxes:
+                bboxes_by_item[item_id].append(
+                    {
+                        "label_name": label_name,
+                        "points": [
+                            (cx - rw / 2) * width,
+                            (cy - rh / 2) * height,
+                            (cx + rw / 2) * width,
+                            (cy + rh / 2) * height,
+                        ],
+                    }
+                )
+
+    return bboxes_by_item
 
 
 @importer(name="YOLO", ext="ZIP", version="1.1")
@@ -122,9 +219,59 @@ def _export_yolo_ultralytics_segmentation(dst_file, temp_dir, instance_data, *, 
     make_zip_archive(temp_dir, dst_file)
 
 
+def _make_pose_bbox_converter(instance_data):
+    instance_meta = instance_data.meta[instance_data.META_FIELD]
+    label_cat = CVATDataExtractorMixin.load_categories(instance_meta["labels"])[AnnotationType.label]
+    top_level_labels = {
+        label["name"]: label
+        for _, label in instance_meta["labels"]
+        if "parent" not in label
+    }
+
+    bbox_label_to_skeleton_label = {}
+    for label_name, label in top_level_labels.items():
+        if label.get("type", "any") != "skeleton":
+            continue
+
+        bbox_label = top_level_labels.get(f"{label_name}__bbox")
+        if bbox_label is None or bbox_label.get("type", "any") not in {"rectangle", "any"}:
+            continue
+
+        skeleton_label_id = label_cat.find(label_name)[0]
+        bbox_label_id = label_cat.find(bbox_label["name"])[0]
+        bbox_label_to_skeleton_label[bbox_label_id] = skeleton_label_id
+
+    def convert_annotations(cvat_frame_anno, label_attrs, map_label, format_name=None, dimension=None):
+        annotations = convert_cvat_anno_to_dm(
+            cvat_frame_anno,
+            label_attrs,
+            map_label,
+            format_name,
+            dimension,
+        )
+        return use_pose_bbox_companions(
+            annotations,
+            bbox_label_to_skeleton_label=bbox_label_to_skeleton_label,
+        )
+
+    return convert_annotations
+
+
 @exporter(name="Ultralytics YOLO Pose", ext="ZIP", version="1.0")
-def _export_yolo_ultralytics_pose(*args, **kwargs):
-    _export_common(*args, format_name="yolo_ultralytics_pose", **kwargs)
+def _export_yolo_ultralytics_pose(dst_file, temp_dir, instance_data, *, save_images=False):
+    with GetCVATDataExtractor(
+        instance_data,
+        include_images=save_images,
+        convert_annotations=_make_pose_bbox_converter(instance_data),
+    ) as extractor:
+        yolo_extractor = RemapPoseBboxCompanionsForYolo(extractor)
+        if not yolo_extractor.is_applicable:
+            yolo_extractor = extractor
+
+        dataset = StreamDataset.from_extractors(yolo_extractor, env=dm_env)
+        dataset.export(temp_dir, "yolo_ultralytics_pose", save_media=save_images)
+
+    make_zip_archive(temp_dir, dst_file)
 
 
 @exporter(name="Ultralytics YOLO Classification", ext="ZIP", version="1.0")
@@ -157,6 +304,11 @@ def _import_yolo_ultralytics_pose(src_file, temp_dir, instance_data, **kwargs):
         label_categories[label_id].name: category.labels
         for label_id, category in point_categories.items.items()
     }
+    bbox_label_names = {
+        label["name"]
+        for _, label in instance_meta["labels"]
+        if "parent" not in label and label.get("type", "any") in {"rectangle", "any"}
+    }
 
     _import_common(
         src_file,
@@ -164,6 +316,11 @@ def _import_yolo_ultralytics_pose(src_file, temp_dir, instance_data, **kwargs):
         instance_data,
         format_name="yolo_ultralytics_pose",
         import_kwargs=dict(skeleton_sub_labels=true_skeleton_point_labels),
+        after_import_callback=lambda dataset, _temp_dir, image_info: dataset.transform(
+            AddPoseBboxCompanions,
+            bboxes_by_item=_collect_yolo_pose_bboxes(_temp_dir, image_info),
+            bbox_label_names=bbox_label_names,
+        ),
         **kwargs,
     )
 

@@ -14,6 +14,8 @@ import { CombinedState } from 'reducers';
 import { LabelType, MLModel } from 'cvat-core-wrapper';
 import { LabelOptColor } from './common';
 
+const POSE_BBOX_LABEL_SUFFIX = '__bbox';
+
 interface Props {
     labelNames: string[];
     onCreate: (label: LabelOptColor) => void;
@@ -105,6 +107,15 @@ function PickFromModelComponent(props: Props): JSX.Element {
                                 }
 
                                 onCreate(generatedLabel);
+
+                                const bboxLabelName = `${generatedLabel.name}${POSE_BBOX_LABEL_SUFFIX}`;
+                                if (generatedLabel.type === LabelType.SKELETON && !labelNames.includes(bboxLabelName)) {
+                                    onCreate({
+                                        name: bboxLabelName,
+                                        type: LabelType.RECTANGLE,
+                                        attributes: [],
+                                    });
+                                }
                             }
                         }}
                     >

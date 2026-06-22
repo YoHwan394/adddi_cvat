@@ -1345,6 +1345,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
 
                             return new core.classes.ObjectState({
                                 attributes: loadAttributes(shape.attributes),
+                                ...(shape.group ? { creationGroup: shape.group } : {}),
                                 elements: shape.elements?.map((element) => {
                                     const jobSublabel = jobLabel.structure!.sublabels
                                         .find((sublabel) => sublabel.id === element.label_id)!;

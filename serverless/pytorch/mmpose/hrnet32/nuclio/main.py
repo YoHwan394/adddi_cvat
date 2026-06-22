@@ -78,6 +78,9 @@ def handler(context, event):
                     for element in label["sublabels"]
                 ],
             }
+            if pred_instance.get("bbox") is not None:
+                bbox = np.asarray(pred_instance["bbox"]).reshape(-1)[:4]
+                skeleton["bbox"] = [float(coord) for coord in bbox]
 
             if not all([element["outside"] for element in skeleton["elements"]]):
                 results.append(skeleton)

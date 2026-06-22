@@ -1196,6 +1196,21 @@ export default class Collection {
             tracks: [],
             tags: [],
         };
+        const inputGroupToCollectionGroup = new Map<number, number>();
+        const getCollectionGroup = (state: ObjectState): number => {
+            const inputGroup = state.creationGroup || 0;
+            if (!inputGroup) {
+                return 0;
+            }
+
+            let collectionGroup = inputGroupToCollectionGroup.get(inputGroup);
+            if (typeof collectionGroup === 'undefined') {
+                collectionGroup = ++this.groups.max;
+                inputGroupToCollectionGroup.set(inputGroup, collectionGroup);
+            }
+
+            return collectionGroup;
+        };
 
         for (const state of objectStates) {
             checkObjectType('object state', state, null, { cls: ObjectState, name: 'ObjectState' });
@@ -1242,13 +1257,14 @@ export default class Collection {
                 if (state.shapeType === 'mask' && state.points.length < 6) {
                     throw new ArgumentError('Could not create empty mask');
                 }
+                const group = getCollectionGroup(state);
 
                 if (state.objectType === 'shape') {
                     constructed.shapes.push({
                         attributes,
                         descriptions: state.descriptions,
                         frame: state.frame,
-                        group: 0,
+                        group,
                         label_id: state.label.id,
                         outside: state.outside || false,
                         occluded: state.occluded || false,
@@ -1263,7 +1279,7 @@ export default class Collection {
                         elements: state.shapeType === 'skeleton' ? state.elements.map((element) => ({
                             attributes: validateAttributesList(objectAttributesAsList(element)),
                             frame: element.frame,
-                            group: 0,
+                            group,
                             label_id: element.label.id,
                             points: [...element.points],
                             rotation: 0,
@@ -1278,7 +1294,7 @@ export default class Collection {
                         attributes: attributes.filter((attr) => !labelAttributes[attr.spec_id].mutable),
                         descriptions: state.descriptions,
                         frame: state.frame,
-                        group: 0,
+                        group,
                         source: state.source,
                         label_id: state.label.id,
                         shapes: [
@@ -1304,7 +1320,7 @@ export default class Collection {
                                 attributes: elementAttrValues
                                     .filter((attr) => !elementAttributes[attr.spec_id].mutable),
                                 frame: state.frame,
-                                group: 0,
+                                group,
                                 label_id: element.label.id,
                                 shapes: [{
                                     frame: state.frame,
