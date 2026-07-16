@@ -26,6 +26,8 @@ from .pose_bbox import UsePoseBboxCompanions
 from .registry import dm_env, exporter, importer
 from .transformations import EllipsesToMasks
 
+_REQUIRE_ISCROWD = False
+
 
 @exporter(name="COCO", ext="ZIP", version="1.0")
 def _export_instances(dst_file, temp_dir, instance_data, save_images=False):
@@ -45,7 +47,9 @@ def _import_instances(
         zipfile.ZipFile(src_file).extractall(temp_dir)
         # We use coco importer because it gives better error message
         detect_dataset(temp_dir, format_name="coco", importer=CocoImporter)
-        dataset = StreamDataset.import_from(temp_dir, "coco_instances", env=dm_env)
+        dataset = StreamDataset.import_from(
+            temp_dir, "coco_instances", env=dm_env, require_iscrowd=_REQUIRE_ISCROWD
+        )
         if load_data_callback is not None:
             load_data_callback(dataset, instance_data)
         import_dm_annotations(dataset, instance_data)
@@ -53,11 +57,14 @@ def _import_instances(
         if load_data_callback:
             raise NoMediaInAnnotationFileError()
 
-        tmp_src_file_link = Path(temp_dir) / "annotations" / "default.json"
-        tmp_src_file_link.parent.mkdir()
-        tmp_src_file_link.symlink_to(src_file.name)
+        annotation_file = Path(temp_dir) / "annotations" / "default.json"
+        annotation_file.parent.mkdir()
+        annotation_file.symlink_to(src_file.name)
         dataset = StreamDataset.import_from(
-            str(tmp_src_file_link.absolute()), "coco_instances", env=dm_env
+            str(annotation_file.absolute()),
+            "coco_instances",
+            env=dm_env,
+            require_iscrowd=_REQUIRE_ISCROWD,
         )
         import_dm_annotations(dataset, instance_data)
 
@@ -129,7 +136,12 @@ def _import_keypoints(src_file, temp_dir, instance_data, load_data_callback=None
         zipfile.ZipFile(src_file).extractall(temp_dir)
         # We use coco importer because it gives better error message
         detect_dataset(temp_dir, format_name="coco", importer=CocoImporter)
-        dataset = StreamDataset.import_from(temp_dir, "coco_person_keypoints", env=dm_env)
+        dataset = StreamDataset.import_from(
+            temp_dir,
+            "coco_person_keypoints",
+            env=dm_env,
+            require_iscrowd=_REQUIRE_ISCROWD,
+        )
         dataset = dataset.transform(
             ConvertPoseBboxAnnotations,
             bbox_label_mapping=_make_pose_bbox_label_mapping(dataset, instance_data),
@@ -141,11 +153,14 @@ def _import_keypoints(src_file, temp_dir, instance_data, load_data_callback=None
         if load_data_callback:
             raise NoMediaInAnnotationFileError()
 
-        tmp_src_file_link = Path(temp_dir) / "annotations" / "default.json"
-        tmp_src_file_link.parent.mkdir()
-        tmp_src_file_link.symlink_to(src_file.name)
+        annotation_file = Path(temp_dir) / "annotations" / "default.json"
+        annotation_file.parent.mkdir()
+        annotation_file.symlink_to(src_file.name)
         dataset = StreamDataset.import_from(
-            str(tmp_src_file_link.absolute()), "coco_person_keypoints", env=dm_env
+            str(annotation_file.absolute()),
+            "coco_person_keypoints",
+            env=dm_env,
+            require_iscrowd=_REQUIRE_ISCROWD,
         )
         dataset = dataset.transform(
             ConvertPoseBboxAnnotations,
