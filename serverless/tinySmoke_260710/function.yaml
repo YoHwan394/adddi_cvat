@@ -1,0 +1,59 @@
+metadata:
+  name: tiny-smoke-260710
+  namespace: cvat
+  annotations:
+    name: tinySmoke_260710
+    type: detector
+    framework: pytorch
+    spec: |
+      [
+        {"id": 0, "name": "smoke", "type": "rectangle"}
+      ]
+
+spec:
+  description: Smoke detector trained by tinySmoke_260710
+  runtime: "python:3.10"
+  handler: main:handler
+  eventTimeout: 60s
+
+  build:
+    image: tiny-smoke-260710
+    baseImage: ubuntu:22.04
+
+    directives:
+      preCopy:
+        - kind: ENV
+          value: DEBIAN_FRONTEND=noninteractive
+        - kind: ENV
+          value: MODEL_PATH=best.pt
+        - kind: ENV
+          value: DETECTION_THRESHOLD=0.25
+        - kind: ENV
+          value: IMAGE_SIZE=960
+        - kind: RUN
+          value: apt-get update && apt-get -y install python3 python3-pip libgl1-mesa-glx libglib2.0-0
+        - kind: WORKDIR
+          value: /opt/nuclio
+        - kind: RUN
+          value: pip3 install --no-cache-dir torch==2.0.0+cpu torchvision==0.15.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+        - kind: RUN
+          value: pip3 install --no-cache-dir ultralytics==8.4.71 opencv-python-headless==4.7.0.72 numpy==1.24.3
+        - kind: RUN
+          value: ln -s /usr/bin/pip3 /usr/local/bin/pip
+        - kind: RUN
+          value: ln -s /usr/bin/python3 /usr/local/bin/python
+
+  triggers:
+    myHttpTrigger:
+      maxWorkers: 1
+      kind: http
+      workerAvailabilityTimeoutMilliseconds: 10000
+      attributes:
+        maxRequestBodySize: 33554432
+
+  platform:
+    attributes:
+      restartPolicy:
+        name: always
+        maximumRetryCount: 3
+      mountMode: volume
